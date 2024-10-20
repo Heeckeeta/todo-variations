@@ -29,18 +29,28 @@ export default class App extends Component {
     });
   };
 
+  onTimer = (timerState, id) => {
+    const idx = this.state.todos.findIndex((el) => el.id === id);
+    const newTodo = { ...this.state.todos[idx], timerState };
+    this.setState(({ todos }) => {
+      return { todos: todos.toSpliced(idx, 1, newTodo) };
+    });
+  };
+
   changeComplete = (id) => {
     this.setState(({ todos }) => {
       return { todos: todos.map((el) => (el.id === id ? { ...el, completed: !el.completed } : el)) };
     });
   };
 
-  addItem = (text) => {
+  addItem = (text, time) => {
     if (text === '') return;
     const newTodo = {
       label: text,
       completed: false,
       id: key++,
+      time,
+      timerState: 'play',
     };
     this.setState(({ todos }) => {
       return { todos: [...todos, newTodo] };
@@ -54,6 +64,24 @@ export default class App extends Component {
   };
 
   onFilter = (select) => this.setState({ selected: select });
+
+  componentDidMount() {
+    this.ID = setInterval(() => {
+      this.setState(({ todos }) => {
+        const newTodos = todos.map((el) => {
+          if (el.timerState === 'pause' || el.time === 0) return el;
+          return { ...el, time: el.time - 1 };
+        });
+        return {
+          todos: newTodos,
+        };
+      });
+    }, 1000);
+  }
+
+  componentWillUnmount() {
+    clearInterval(this.ID);
+  }
 
   render() {
     const itemsLeft = this.state.todos.filter((el) => !el.completed).length;
@@ -69,6 +97,7 @@ export default class App extends Component {
             onDeleted={this.deleteTodo}
             onEdit={this.editTodo}
             onComplete={this.changeComplete}
+            onTimer={this.onTimer}
           />
           <Footer
             itemsLeft={itemsLeft}

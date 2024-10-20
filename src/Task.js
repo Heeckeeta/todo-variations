@@ -37,14 +37,32 @@ export default class Task extends Component {
     editing: false,
     date: new Date(),
     distance: 'less than a minute',
+    time: this.props.time,
+    timer: `${Math.floor(this.props.time / 60)}:${this.props.time % 60 < 10 ? '0' : ''}${this.props.time % 60}`,
+    timerState: this.props.timerState,
   };
 
   componentDidMount() {
-    this.timerID = setInterval(() => this.setState({ distance: formatDistanceToNow(this.state.date) }), 30000);
+    this.distanceID = setInterval(() => this.setState({ distance: formatDistanceToNow(this.state.date) }), 30000);
+    this.timerID = setInterval(
+      () =>
+        this.setState(({ time }) => {
+          if (this.state.timerState === 'pause') return;
+          time--;
+          if (!time) clearInterval(this.timerID);
+          const timer = `${Math.floor(time / 60)}:${time % 60 < 10 ? '0' : ''}${time % 60}`;
+          return {
+            time,
+            timer,
+          };
+        }),
+      1000
+    );
   }
 
   componentWillUnmount() {
-    clearInterval(this.timerID);
+    clearInterval(this.distanceID);
+    if (this.state.time) clearInterval(this.timerID);
   }
 
   onChange = (e) => {
@@ -57,6 +75,16 @@ export default class Task extends Component {
     this.setState({ editing: false });
   };
 
+  playTimerState = () => {
+    this.setState({ timerState: 'play' });
+    this.props.onTimer('play');
+  };
+
+  pauseTimerState = () => {
+    this.setState({ timerState: 'pause' });
+    this.props.onTimer('pause');
+  };
+
   render() {
     const { label, completed, onDeleted, onComplete } = this.props;
     let classes = completed ? 'completed' : '';
@@ -66,8 +94,13 @@ export default class Task extends Component {
         <div className="view">
           <input className="toggle" type="checkbox" checked={completed} onChange={() => onComplete()} />
           <label>
-            <span className="description">{label}</span>
-            <span className="created">created {this.state.distance} ago</span>
+            <span className="title">{label}</span>
+            <span className="description">
+              <button className="icon icon-play" onClick={this.playTimerState} />
+              <button className="icon icon-pause" onClick={this.pauseTimerState} />
+              <span className="timer">{this.state.timer}</span>
+            </span>
+            <span className="description">created {this.state.distance} ago</span>
           </label>
           <button className="icon icon-edit" onClick={() => this.setState({ editing: true })} />
           <button className="icon icon-destroy" onClick={() => onDeleted()} />

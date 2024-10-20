@@ -6,7 +6,7 @@ export default function Header({ onAdd }) {
   return (
     <header className="header">
       <h1>todos</h1>
-      <NewTaskForm onAdd={(text) => onAdd(text)} />
+      <NewTaskForm onAdd={(text, time) => onAdd(text, time)} />
     </header>
   );
 }
