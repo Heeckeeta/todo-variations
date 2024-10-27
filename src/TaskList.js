@@ -2,7 +2,7 @@ import './TaskList.css';
 
 import Task from './Task.js';
 
-export default function TaskList({ todos, onDeleted, onEdit, onComplete, onTimer }) {
+export default function TaskList({ todos, onDeleted, onEdit, onComplete, onTimer, onPauses }) {
   const elems = todos.map((item) => (
     <Task
       {...item}
@@ -11,6 +11,7 @@ export default function TaskList({ todos, onDeleted, onEdit, onComplete, onTimer
       onEdit={(text) => onEdit(item.id, text)}
       onComplete={() => onComplete(item.id)}
       onTimer={(timerState) => onTimer(timerState, item.id)}
+      onPauses={(text) => onPauses(item.id, text)}
     />
   ));
   return <ul className="todo-list">{elems}</ul>;

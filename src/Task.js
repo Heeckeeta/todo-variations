@@ -1,116 +1,99 @@
 import './Task.css';
 
-import { Component } from 'react';
+import { useState, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 
-export default class Task extends Component {
-  static propTypes = {
-    onEdit: (props, propsName, componentName) => {
-      const val = props[propsName];
-      if (typeof val === 'function') return null;
-      return new TypeError(`${componentName}: ${propsName} must be a function`);
-    },
-    onDeleted: (props, propsName, componentName) => {
-      const val = props[propsName];
-      if (typeof val === 'function') return null;
-      return new TypeError(`${componentName}: ${propsName} must be a function`);
-    },
-    onComplete: (props, propsName, componentName) => {
-      const val = props[propsName];
-      if (typeof val === 'function') return null;
-      return new TypeError(`${componentName}: ${propsName} must be a function`);
-    },
-    label: (props, propsName, componentName) => {
-      const val = props[propsName];
-      if (typeof val === 'string') return null;
-      return new TypeError(`${componentName}: ${propsName} must be a string`);
-    },
-    completed: (props, propsName, componentName) => {
-      const val = props[propsName];
-      if (typeof val === 'boolean') return null;
-      return new TypeError(`${componentName}: ${propsName} must be a boolean`);
-    },
-  };
+export default function Task({
+  label,
+  completed,
+  pauses,
+  date,
+  onDeleted,
+  onComplete,
+  time,
+  timerState,
+  onEdit,
+  onTimer,
+  onPauses,
+}) {
+  const [stateLabel, setLabel] = useState(label);
+  const [stateEditing, setEditing] = useState(false);
+  const [stateDistance, setDistance] = useState(formatDistanceToNow(date));
+  let sumPauses = 0;
+  for (let i = 1; i < pauses.length; i += 2) {
+    sumPauses = sumPauses + Number(pauses[i]) - Number(pauses[i - 1]);
+  }
+  if (pauses.length % 2 === 1) {
+    sumPauses = sumPauses + Number(Date.now()) - Number(pauses[pauses.length - 1]);
+  }
+  let restTime = time - ((Number(Date.now()) - Number(date) - sumPauses) / 1000).toFixed(0);
+  if (restTime < 0) restTime = 0;
+  const [stateTime, setTime] = useState(restTime);
+  const [stateTimer, setTimer] = useState(
+    `${Math.floor(restTime / 60)}:${restTime % 60 < 10 ? '0' : ''}${restTime % 60}`
+  );
+  const [stateTimerState, setTimerState] = useState(timerState);
 
-  state = {
-    label: this.props.label,
-    editing: false,
-    date: new Date(),
-    distance: 'less than a minute',
-    time: this.props.time,
-    timer: `${Math.floor(this.props.time / 60)}:${this.props.time % 60 < 10 ? '0' : ''}${this.props.time % 60}`,
-    timerState: this.props.timerState,
-  };
-
-  componentDidMount() {
-    this.distanceID = setInterval(() => this.setState({ distance: formatDistanceToNow(this.state.date) }), 30000);
-    this.timerID = setInterval(
+  useEffect(() => {
+    const distanceID = setInterval(() => setDistance(formatDistanceToNow(date)), 1000);
+    const timerID = setTimeout(
       () =>
-        this.setState(({ time }) => {
-          if (this.state.timerState === 'pause') return;
-          time--;
-          if (!time) clearInterval(this.timerID);
-          const timer = `${Math.floor(time / 60)}:${time % 60 < 10 ? '0' : ''}${time % 60}`;
-          return {
-            time,
-            timer,
-          };
+        setTime((t) => {
+          if (stateTimerState === 'pause' || t === 0) return t;
+          t--;
+          const timer = `${Math.floor(t / 60)}:${t % 60 < 10 ? '0' : ''}${t % 60}`;
+          setTimer(timer);
+          return t;
         }),
       1000
     );
-  }
+    return () => {
+      clearInterval(distanceID);
+      clearTimeout(timerID);
+    };
+  }, [stateTime, stateTimerState]);
 
-  componentWillUnmount() {
-    clearInterval(this.distanceID);
-    if (this.state.time) clearInterval(this.timerID);
-  }
-
-  onChange = (e) => {
-    this.setState({ label: e.target.value });
-  };
-
-  onSubmit = (e) => {
+  const onSubmit = (e) => {
     e.preventDefault();
-    this.props.onEdit(this.state.label.trim());
-    this.setState({ editing: false });
+    onEdit(stateLabel.trim());
+    setEditing(false);
   };
 
-  playTimerState = () => {
-    this.setState({ timerState: 'play' });
-    this.props.onTimer('play');
+  const playTimerState = () => {
+    setTimerState('play');
+    onTimer('play');
+    onPauses('play');
   };
 
-  pauseTimerState = () => {
-    this.setState({ timerState: 'pause' });
-    this.props.onTimer('pause');
+  const pauseTimerState = () => {
+    setTimerState('pause');
+    onTimer('pause');
+    onPauses('pause');
   };
 
-  render() {
-    const { label, completed, onDeleted, onComplete } = this.props;
-    let classes = completed ? 'completed' : '';
-    if (this.state.editing) classes += ' editing';
-    return (
-      <li className={classes}>
-        <div className="view">
-          <input className="toggle" type="checkbox" checked={completed} onChange={() => onComplete()} />
-          <label>
-            <span className="title">{label}</span>
-            <span className="description">
-              <button className="icon icon-play" onClick={this.playTimerState} />
-              <button className="icon icon-pause" onClick={this.pauseTimerState} />
-              <span className="timer">{this.state.timer}</span>
-            </span>
-            <span className="description">created {this.state.distance} ago</span>
-          </label>
-          <button className="icon icon-edit" onClick={() => this.setState({ editing: true })} />
-          <button className="icon icon-destroy" onClick={() => onDeleted()} />
-        </div>
-        <form onSubmit={this.onSubmit}>
-          {this.state.editing && (
-            <input type="text" className="edit" value={this.state.label} autoFocus onChange={this.onChange} />
-          )}
-        </form>
-      </li>
-    );
-  }
+  let classes = completed ? 'completed' : '';
+  if (stateEditing) classes += ' editing';
+  return (
+    <li className={classes}>
+      <div className="view">
+        <input className="toggle" type="checkbox" checked={completed} onChange={() => onComplete()} />
+        <label>
+          <span className="title">{label}</span>
+          <span className="description">
+            <button className="icon icon-play" onClick={playTimerState} />
+            <button className="icon icon-pause" onClick={pauseTimerState} />
+            <span className="timer">{stateTimer}</span>
+          </span>
+          <span className="description">created {stateDistance} ago</span>
+        </label>
+        <button className="icon icon-edit" onClick={() => setEditing(true)} />
+        <button className="icon icon-destroy" onClick={() => onDeleted()} />
+      </div>
+      <form onSubmit={onSubmit}>
+        {stateEditing && (
+          <input type="text" className="edit" value={stateLabel} autoFocus onChange={(e) => setLabel(e.target.value)} />
+        )}
+      </form>
+    </li>
+  );
 }
